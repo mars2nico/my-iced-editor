@@ -1,3 +1,3 @@
 my first iced app
 
-see https://youtu.be/gcBJ7cPSALo
+reference https://youtu.be/gcBJ7cPSALo
