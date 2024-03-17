@@ -28,7 +28,7 @@ struct Editor {
 
 #[derive(Debug, Clone)]
 enum Message {
-    Edit(text_editor::Action),
+    EditorStateChanged(text_editor::Action),
     New,
     Open,
     FileOpened(Result<(PathBuf, Arc<String>), Error>),
@@ -62,10 +62,10 @@ impl Application for Editor {
 
     fn update(&mut self, message: Self::Message) -> Command<Message> {
         match message {
-            Message::Edit(action) => {
+            Message::EditorStateChanged(action) => {
                 self.is_dirty = self.is_dirty || action.is_edit();
                 self.error = None;
-                self.content.edit(action);
+                self.content.perform(action);
                 Command::none()
             }
             Message::New => {
@@ -77,7 +77,7 @@ impl Application for Editor {
             Message::Open => Command::perform(pick_file(), Message::FileOpened),
             Message::FileOpened(Ok((path, content))) => {
                 self.path = Some(path);
-                self.content = text_editor::Content::with(&content);
+                self.content = text_editor::Content::with_text(&content);
                 self.is_dirty = false;
                 Command::none()
             }
@@ -119,7 +119,7 @@ impl Application for Editor {
                 "Save file",
                 self.is_dirty.then_some(Message::Save)
             ),
-            horizontal_space(Length::Fill),
+            horizontal_space(),
             action(
                 theme_icon(self.theme.is_dark()),
                 "Switch theme",
@@ -127,7 +127,8 @@ impl Application for Editor {
             ),
         ];
         let input = text_editor(&self.content)
-            .on_edit(Message::Edit)
+            .height(Length::Fill)
+            .on_action(Message::EditorStateChanged)
             .highlight::<Highlighter>(
                 highlighter::Settings {
                     theme: self.theme,
@@ -157,7 +158,7 @@ impl Application for Editor {
                 text(format!("{}:{}", line + 1, column + 1))
             };
 
-            row![status, horizontal_space(Length::Fill), position]
+            row![status, horizontal_space(), position]
         };
 
         container(column![controls, input, status_bar])
@@ -176,7 +177,7 @@ impl Application for Editor {
 
 fn action<'a>(
     content: Element<'a, Message>,
-    label: &str,
+    label: &'a str,
     on_press: Option<Message>,
 ) -> Element<'a, Message> {
     let is_disabled = on_press.is_none();
